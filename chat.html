@@ -455,7 +455,8 @@
         <input id="username" placeholder="Enter your username" />
         <button onclick="register()">Register</button>
     </div>
-
+    <input type="text" id="roomInput" placeholder="Enter room name" />
+        <button onclick="createOrJoinRoom()">Join Room</button>
     <div class="container" style="display:none;">
         <!-- Left side: User list -->
         <div id="userList">
@@ -499,6 +500,7 @@
             const username = document.getElementById('username').value;
             if (username) {
                 socket.emit('register', username);
+                socket.emit('joinRoom', username);
                 loggedInUser = username; // Store the logged-in user
                 document.getElementById('register').style.display = 'none'; // Hide the register form
                 document.querySelector('.container').style.display = 'flex'; // Show the chat interface

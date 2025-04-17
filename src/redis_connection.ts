@@ -13,9 +13,10 @@ const initRedisClient = async() =>{
         client.on("error",()=>console.log("Error in creating client"));
     }
     try{
+        /*
         await client.connect();
         console.log("Redis is connected");
-        const lastSaveUnix :any = await client?.lastSave();
+       const lastSaveUnix :any = await client?.lastSave();
         const lastSaveDate = new Date(lastSaveUnix * 1000);
         
         console.log(`🕒 Last successful save: ${lastSaveDate.toISOString()}`);
@@ -86,6 +87,7 @@ const initRedisClient = async() =>{
 
         /* Sorted Sets Method :  */
         // To Add Players in Sroted Sets : 
+        /*
         await client.zAdd("players",[
             {score:100,value:'Jay'},
             {score:120,value:'Deep'},
@@ -156,7 +158,7 @@ const initRedisClient = async() =>{
         console.log("Union of two sets",await client.sUnion(['fruits1','fruits2'])) // To Take Union Between Fruits1 To Fruits 2
 
         console.log(await client.flushAll()); // Delete All Keys 
-
+*/
         
     }
     catch(error){  
