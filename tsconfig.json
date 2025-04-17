@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "es2016", 
+    "module": "commonjs",
+    "rootDir": "./src",     
+    "outDir": "./dist",      
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true, 
+    "strict": true,                           
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@middleware/*":["src/middleware/*"],
+      "@config/*":["src/config/*"],
+      "@router/*":["src/routes/*"],
+      "@redis":["src/redis_connection"],
+      "@controller/*":["src/controller/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}
