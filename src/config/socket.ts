@@ -1,126 +1,157 @@
 import { Server } from "socket.io";
+
 class ChatSocket {
     private io: Server;
-    private users:Record<string,string>;
-    private chatHistory:any;
-    private socketToRoom: { [socketId: string]: string }; // Track rooms per socket
-    constructor(io:any) {
-        console.log("ChatSocket initialized");
+    private users: Record<string, string> = {};
+    private groups: Record<string, Set<string>> = {}; 
+    private userGroups: Record<string, Set<string>> = {}; 
+    private chatHistory: Record<string, Array<{ sender: string, message: string }>> = {}; 
+
+    constructor(io: any) {
+        console.log("Group Chat Socket initialized");
         this.io = io;
-        this.users = {}; 
-        this.chatHistory = {}; 
-        this.socketToRoom = {};
         this.initializeSocket();
     }
 
     initializeSocket() {
-        console.log("Socket.IO initialized and listening for connections...");
         this.io.on("connection", (socket) => {
             console.log("A user connected:", socket.id);
-            socket.on("register", (username) => this.handleRegister(socket, username));
-            socket.on("startChat", (targetUsername) => this.handleStartChat(socket, targetUsername));
-            socket.on("sendMessage", (_targetUsername, message) => this.handleSendMessage(socket, message));
-            socket.on("getChatHistory", () => this.handleGetChatHistory(socket));
+
+            socket.on("register", (username: string) => this.handleRegister(socket, username));
+            socket.on("createGroup", (groupName: string) => this.handleCreateGroup(socket, groupName));
+            socket.on("joinGroup", (groupName: string) => this.handleJoinGroup(socket, groupName));
+            socket.on("leaveGroup", (groupName: string) => this.handleLeaveGroup(socket, groupName));
+            socket.on("groupMessage", (groupName: string, message: string) => this.handleGroupMessage(socket, groupName, message));
+            socket.on("getGroupHistory", (groupName: string) => this.handleGetGroupHistory(socket, groupName));
             socket.on("disconnect", () => this.handleDisconnect(socket));
-            socket.on("typing", () => this.handleTyping(socket));
-            socket.on("stopTyping", () => this.handleStopTyping(socket));
+            socket.on('getGroupUsers',(groupName: string) => this.handleGroupUsers(socket,groupName));
         });
-    } 
-  
+    }
+
     handleRegister(socket: any, username: string) {
         this.users[socket.id] = username;
-        console.log("Users:", this.users);
-        this.io.emit("userList", Object.values(this.users));
-        socket.broadcast.emit("userJoined", `${username} has joined the chat!`);
+        socket.emit("registered", username);
+        this.emitGroupListsForUser(socket);
     }
-    handleStartChat(socket: any, targetUsername: string) {
+
+    handleCreateGroup(socket: any, groupName: string) {
+        const groupId = `group-${groupName}`;
+    
+        if (!this.groups[groupId]) {
+            this.groups[groupId] = new Set();
+            this.chatHistory[groupId] = [];
+        }
+    
+        // Add the user who created the group to the group
+        this.groups[groupId].add(socket.id);
+    
+        if (!this.userGroups[socket.id]) {
+            this.userGroups[socket.id] = new Set();
+        }
+        this.userGroups[socket.id].add(groupId);
+    
+        // Join the group
+        socket.join(groupId);
+        // this.emitGroupListsForUser(socket);
+        // Notify the user that the group was created and they joined it
+        socket.emit("joinedGroup", groupName);
+        this.updateGroupList();
+    
+
+    }
+    
+    updateGroupList() {
+        const allSockets = this.io.sockets.sockets;
+    
+        for (const [socketId, socket] of allSockets) {
+            this.emitGroupListsForUser(socket);
+        }
+    }
+
+    handleJoinGroup(socket: any, groupName: string) {
+        if (!this.groups[groupName]) {
+            this.groups[groupName] = new Set();
+            this.chatHistory[groupName] = []; 
+        }
+        this.groups[groupName].add(socket.id);
+  
+        if (!this.userGroups[socket.id]) {
+            this.userGroups[socket.id] = new Set();
+        }
+        this.userGroups[socket.id].add(groupName);
+
+        socket.join(groupName);
+        socket.emit("joinedGroup", groupName);
+        this.io.to(groupName).emit("groupMessage", {
+            message: `${this.users[socket.id]} joined the group.`,
+            from: 'System',
+        });
+        this.handleGetGroupHistory(socket, groupName);
+        this.emitGroupListsForUser(socket);
+    }
+
+    handleLeaveGroup(socket: any, groupName: string) {
+        this.groups[groupName]?.delete(socket.id);
+        this.userGroups[socket.id]?.delete(groupName);
+        socket.leave(groupName);
+        socket.emit("leftGroup", groupName);
+        // this.io.to(groupName).emit("userLeftGroup", `${this.users[socket.id]} left ${groupName}`);
+        this.io.to(groupName).emit("groupMessage", {
+            message: `${this.users[socket.id]} left the group.`,
+            from: 'System',
+        });
+        this.emitGroupListsForUser(socket);
+
+    }
+    handleGetGroupHistory(socket: any, groupName: string) {
+        const history = this.chatHistory[groupName] || [];
+        socket.emit("groupHistory", { group: groupName, history });
+    }
+
+    handleGroupMessage(socket: any, groupName: string, message: string) {
         const sender = this.users[socket.id];
-        const roomId = [sender, targetUsername].sort().join('-');
-        console.log("Room ID in start chat:", roomId);  // Debugging
-          // Check if the user is already in the room
-          console.log("Sender",sender,"Room id :",roomId);
-        if (this.socketToRoom[socket.id] === roomId) {
-            console.log("Already in room:", roomId);
-            socket.emit('roomJoined', roomId); // Emit the roomId to the client
-            return;
-        }
-
- 
-        // Join the room
-        socket.join(roomId);
-        this.socketToRoom[socket.id] = roomId;
-    
-        // Find and join the target user’s room too
-        const targetSocketId = Object.keys(this.users).find(id => this.users[id] === targetUsername);
-        if (targetSocketId) {
-            const targetSocket = this.io.sockets.sockets.get(targetSocketId);
-            if (targetSocket) {
-                targetSocket.join(roomId);
-                this.socketToRoom[targetSocketId] = roomId;
-            }
-        }
-    
-        socket.emit('roomJoined', roomId); // Emit the roomId to the client
-    }
-
-
-    handleSendMessage(socket: any, message: string) {
-        const sender = this.users[socket.id]; // Get the sender's username
-        const roomId = this.socketToRoom[socket.id]; // Get the current room the sender is in
-        const receiver = roomId.split('-').find(user => user !== sender); // Extract the receiver's username from the room ID
-    
-        if (!this.chatHistory[roomId]) {
-            this.chatHistory[roomId] = [];
-        }
-        // console.log("Chat History Before  Push  At sendMessage : ", this.chatHistory);
-        // console.log(message)
-        this.chatHistory[roomId].push({ from: sender, message });
-        // console.log("Chat History After Push  At sendMessage : ", this.chatHistory);
-        // Send the message to the recipient
-        const targetSocketId = Object.keys(this.users).find(socketId => this.users[socketId] === receiver);
-        if (targetSocketId) {
-            this.io.to(targetSocketId).emit('receive-message', { from: sender, message });
-        }
-    
-        // Send the message to the sender (to update the sender's view)
-        socket.emit('receive-message', { from: 'You', message });
-    }
-    handleGetChatHistory(socket: any) {
-        const roomId = this.socketToRoom[socket.id];
-        // console.log("Socket To Room Called : ",this.socketToRoom);
-        // console.log("/*/*/*/*/*/",this.socketToRoom[socket.id])
-        const history = this.chatHistory[roomId] || [];
-        // console.log("Chat History : ",this.chatHistory)
-        // console.log(history)
-        socket.emit('chatHistory', history); // Send chat history to the client
+        this.chatHistory['group-'+groupName] = this.chatHistory['group-'+groupName] || [];
+        this.chatHistory['group-'+groupName].push({ sender, message });
+       
+        this.io.to('group-'+groupName).emit("groupMessage", { from: sender, message });
     }
 
     handleDisconnect(socket: any) {
+        const username = this.users[socket.id];
         delete this.users[socket.id];
-        delete this.socketToRoom[socket.id];
-        console.log("User disconnected:", socket.id);
-        this.io.emit("userList", Object.values(this.users));
-    }
-    handleTyping(socket: any) {
-        const sender = this.users[socket.id];
-        const roomId = this.socketToRoom[socket.id];
-        console.log("From TYping : ",this.socketToRoom,sender,roomId);
-        if (!roomId) return;
 
-      
-        
-        socket.to(roomId).emit("typing", sender);
+        // Remove user from all groups they joined
+        const groups = this.userGroups[socket.id] || new Set();
+        groups.forEach(group => {
+            this.groups[group]?.delete(socket.id);
+            this.io.to(group).emit("userLeftGroup", `${username} disconnected`);
+        });
+
+        delete this.userGroups[socket.id];
     }
 
-    handleStopTyping(socket: any) {
-        const sender = this.users[socket.id];
-        const roomId = this.socketToRoom[socket.id];
-        if (!roomId) return;
-
-        socket.to(roomId).emit("stopTyping", sender);
+    // Emit group lists specific to the user
+    emitGroupListsForUser(socket: any) {
+        const allGroups = Object.keys(this.groups); // ['group-friends', 'group-music', etc.]
+        const joinedGroups = Array.from(this.userGroups[socket.id] || []);
+        // Filter out joined from all to get non-joined
+        const notJoinedGroups = allGroups.filter(group => !joinedGroups.includes(group));
+        socket.emit('groupLists', {
+            joinedGroups: joinedGroups.map(g => g.replace('group-', '')),
+            otherGroups: notJoinedGroups.map(g => g.replace('group-', ''))
+        });
     }
+
+    handleGroupUsers(socket:any,groupName:string){
+        const groupId = `group-${groupName}`;
+        const socketIdsInGroup = this.groups[groupId] || new Set();
+        const users = Array.from(socketIdsInGroup)
+        .map(sid => this.users[sid])
+        .filter(Boolean);
+
+        socket.emit("groupUsers", { group: groupName, users });
+    }
+
 }
-export default  (io: any) => new ChatSocket(io);
 
-
-
+export default (io: any) => new ChatSocket(io);

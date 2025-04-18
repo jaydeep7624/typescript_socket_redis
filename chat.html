@@ -1,419 +1,87 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Socket.IO Client</title>
-    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
-    <style>
-        /* Basic styling */
-        body {
-            display: flex;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-        }
-
-        /* Sidebar with user list */
-        #userList {
-            width: 250px;
-            background-color: #f0f0f0;
-            border-right: 1px solid #ddd;
-            padding: 20px;
-            box-sizing: border-box;
-            overflow-y: auto;
-        }
-
-        #userList ul {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        #userList li {
-            padding: 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #ddd;
-        }
-
-        #userList li:hover {
-            background-color: #eee;
-        }
-
-        /* Active user highlight */
-        .active-user {
-            background-color: #d3f4ff;
-            font-weight: bold;
-        }
-
-        /* Chat section */
-        #chat {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        /* Chat history */
-        #chatHistory {
-            flex-grow: 1;
-            overflow-y: auto;
-            margin-bottom: 10px;
-        }
-
-        #chatHistory ul {
-            list-style-type: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        #chatHistory li {
-            margin: 5px 0;
-        }
-
-        /* Message input section */
-        #messageInputSection {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        #messageInput {
-            width: 80%;
-            padding: 10px;
-            border-radius: 20px;
-            border: 1px solid #ddd;
-            font-size: 16px;
-        }
-
-        #sendButton {
-            padding: 10px 20px;
-            background-color: #25d366;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-        }
-
-        #sendButton:hover {
-            background-color: #128c7e;
-        }
-
-        /* Main wrapper to hold the layout */
-        .container {
-            display: flex;
-            width: 100%;
-            height: 100vh;
-        }
-
-        /* Registration form styling */
-        #register {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f7f7f7;
-        }
-
-        #register input {
-            padding: 10px;
-            font-size: 16px;
-            margin: 10px;
-            width: 250px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-
-        #register button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        #register button:hover {
-            background-color: #45a049;
-        }
-
-    </style>
-</head>
-<body>
-
-    <div id="register">
-        <h2>Register</h2>
-        <input id="username" placeholder="Enter your username" />
-        <button onclick="register()">Register</button>
-    </div>
-
-    <div class="container" style="display:none;">
-     
-        <div id="userList">
-            <h3>Users</h3>
-            <ul id="userListUl"></ul>
-        </div>
-
-       
-        <div id="chat">
-            <p id="welcomeText">Select a user to start chatting.</p>
-          
-            <div id="chatHistory">
-                <ul id="chatHistoryList"></ul>
-            </div>
-           
-            <div id="messageInputSection">
-                <input type="text" id="messageInput" placeholder="Enter message" />
-                <button id="sendButton" onclick="sendMessage()">Send</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const socket = io('http://localhost:3000');
-        let targetUsername = ''; // Variable to store the username of the selected user
-        let currentChatHistory = []; // Array to store the chat history for the current conversation
-
-        socket.on('connect', () => {
-            console.log('Connected to server');
-        });
-
-        // Register the user
-        function register() {
-            const username = document.getElementById('username').value;
-            if (username) {
-                socket.emit('register', username);
-                document.getElementById('register').style.display = 'none'; // Hide the register form
-                document.querySelector('.container').style.display = 'flex'; // Show the chat interface
-            } else {
-                alert('Please enter a username');
-            }
-        }
-
-        // Listen for user list updates
-        socket.on('userList', (users) => {
-            const userListElement = document.getElementById('userListUl');
-            userListElement.innerHTML = ''; // Clear the existing list
-            users.forEach(user => {
-                const li = document.createElement('li');
-                li.textContent = user;
-                li.onclick = () => selectUser(user, li); // Add click event to select a user
-                userListElement.appendChild(li);
-            });
-        });
-
-        // Select a user to send a private message to and display chat history
-        function selectUser(username, userElement) {
-            // Highlight the selected user
-            const userListItems = document.querySelectorAll('#userList li');
-            userListItems.forEach(item => item.classList.remove('active-user')); // Remove highlight from all users
-            userElement.classList.add('active-user'); // Add highlight to the selected user
-
-            targetUsername = username; // Set the target username
-            currentChatHistory = []; // Clear previous chat history
-            displayChatHistory(); // Show the chat history of the selected user
-            document.getElementById('welcomeText').style.display = 'none'; // Hide welcome text
-            socket.emit('getChatHistory', targetUsername); // Fetch chat history between the logged-in user and selected user
-        }
-
-        // Send message to the selected user
-        function sendMessage() {
-            const message = document.getElementById('messageInput').value;
-            if (message && targetUsername) {
-                // Emit the message to the backend
-                socket.emit('sendMessage', targetUsername, message);
-
-                // Add the sent message to the chat history and display it
-                currentChatHistory.push({ from: 'You', message: message });
-                displayChatHistory();
-                document.getElementById('messageInput').value = ''; // Clear the input field
-            } else {
-                alert('Please select a user and enter a message');
-            }
-        }
-
-        // Display chat history for the selected user
-        function displayChatHistory() {
-            const chatHistoryList = document.getElementById('chatHistoryList');
-            chatHistoryList.innerHTML = ''; // Clear previous history
-
-            currentChatHistory.forEach(msg => {
-                const li = document.createElement('li');
-                li.textContent = `${msg.from}: ${msg.message}`;
-                chatHistoryList.appendChild(li);
-            });
-
-            // Scroll to the bottom of the chat history
-            chatHistoryList.scrollTop = chatHistoryList.scrollHeight;
-        }
-
-        // Receive and display incoming messages
-        socket.on('receive-message', (data) => {
-            // Only show messages for the currently selected user
-            if (data.to === targetUsername || data.from === targetUsername) {
-                currentChatHistory.push({ from: data.from, message: data.message });
-                displayChatHistory();
-            }
-        });
-
-        // Receive chat history when selected user is clicked
-        socket.on('chatHistory', (history) => {
-            currentChatHistory = history; // Store the history specific to this conversation
-            displayChatHistory();
-        });
-    </script>
-</body>
-</html> -->
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Socket.IO Client</title>
+    <title>Group Chat</title>
     <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
     <style>
-        /* Basic styling */
+        /* Basic Styles for layout */
         body {
-            display: flex;
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-        }
-
-        /* Sidebar with user list */
-        #userList {
-            width: 250px;
-            background-color: #f0f0f0;
-            border-right: 1px solid #ddd;
-            padding: 20px;
-            box-sizing: border-box;
-            overflow-y: auto;
-        }
-
-        #userList ul {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        #userList li {
-            padding: 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #ddd;
-        }
-
-        #userList li:hover {
-            background-color: #eee;
-        }
-
-        /* Active user highlight */
-        .active-user {
-            background-color: #d3f4ff;
-            font-weight: bold;
-        }
-
-        /* Chat section */
-        #chat {
-            flex-grow: 1;
             display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        /* Chat history */
-        #chatHistory {
-            flex-grow: 1;
-            overflow-y: auto;
-            margin-bottom: 10px;
-        }
-
-        #chatHistory ul {
-            list-style-type: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        #chatHistory li {
-            margin: 5px 0;
-            padding: 10px;
-            border-radius: 10px;
-            max-width: 60%;
-        }
-
-        /* Message from current user */
-        .message-sent {
-            background-color: #d3f4ff;
-            align-self: flex-end;
-        }
-
-        /* Message from other user */
-        .message-received {
-            background-color: #f1f1f1;
-            align-self: flex-start;
-        }
-
-        /* Message input section */
-        #messageInputSection {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        #messageInput {
-            width: 80%;
-            padding: 10px;
-            border-radius: 20px;
-            border: 1px solid #ddd;
-            font-size: 16px;
-        }
-
-        #sendButton {
-            padding: 10px 20px;
-            background-color: #25d366;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-        }
-
-        #sendButton:hover {
-            background-color: #128c7e;
-        }
-
-        /* Main wrapper to hold the layout */
-        .container {
-            display: flex;
-            width: 100%;
-            height: 100vh;
-        }
-
-        /* Registration form styling */
-        #register {
-            display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background-color: #f7f7f7;
+            background-color: #f1f1f1;
+            margin: 0;
+        }
+        #app {
+            width: 80%;
+            max-width: 900px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
         }
 
-        #register input {
+        /* Left Section (Group List) */
+        #groupListContainer {
+            display: flex;
+            justify-content: flex-start;
+            margin-top: 20px;
+        }
+        #groupList {
+            width: 30%;
+            max-width: 250px;
+            border-right: 2px solid #ddd;
+            padding-right: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        #groupList li {
             padding: 10px;
-            font-size: 16px;
-            margin: 10px;
-            width: 250px;
+            cursor: pointer;
+            background: #f9f9f9;
+            margin-bottom: 10px;
             border-radius: 5px;
-            border: 1px solid #ddd;
+            transition: background 0.2s;
+        }
+        #groupList li:hover {
+            background: #e1e1e1;
         }
 
-        #register button {
+        /* Right Section (Chat Area) */
+        #chatArea {
+            width: 65%;
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 400px;
+        }
+        #chatTitle {
+            font-size: 24px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background: #fafafa;
+        }
+        #msgInput {
+            padding: 10px;
+            width: calc(100% - 100px);
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #sendButton {
             padding: 10px 20px;
             background-color: #4CAF50;
             color: white;
@@ -421,218 +89,356 @@
             border-radius: 5px;
             cursor: pointer;
         }
-
-        #register button:hover {
+        #sendButton:hover {
             background-color: #45a049;
         }
-        .message-sent {
-            background-color: #d3f4ff;
-            align-self: flex-end;
-            text-align: right;
+
+        /* Register Section */
+        #registerSection {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #registerSection input {
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+        }
+        #registerSection button {
+            padding: 10px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
         }
 
-        .message-received {
-            background-color: #f1f1f1;
-            align-self: flex-start;
-            text-align: left;
+        /* Create Group Button */
+        #createGroupBtn {
+            padding: 10px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            position: absolute;
+            top: 10px;
+            left: 10px;
         }
-        @keyframes blink {
-            0% { background-color: #ffeb3b; } /* Yellow highlight */
-            50% { background-color: transparent; }
-            100% { background-color: #ffeb3b; }
-        }
-
-        .blinking {
-            animation: blink 1s infinite;
+        #createGroupBtn:hover {
+            background-color: #1976D2;
         }
 
     </style>
 </head>
 <body>
-    <!-- Registration Form -->
-    <div id="register">
-        <h2>Register</h2>
-        <input id="username" placeholder="Enter your username" />
-        <button onclick="register()">Register</button>
+
+<div id="app">
+    <!-- Register Section -->
+    <div id="registerSection">
+        <h1>Register Username</h1>
+        <input type="text" id="username" placeholder="Enter your username" />
+        <button id="registerBtn">Register</button>
     </div>
 
-    <div class="container" style="display:none;">
-        
-        <!-- Left side: User list -->
-        <div id="userList">
-            <h3>Users</h3>
-            <ul id="userListUl"></ul>
-        </div>
+    <!-- Group Chat Section -->
+    <div id="chatSection" style="display: none;">
+        <!-- Create Group Button on the left top -->
+        <button id="createGroupBtn" onclick="createGroup()">Create Group</button>
 
-        <!-- Right side: Chat window -->
-        <div id="chat">
-            <p id="welcomeText">Select a user to start chatting.</p>
-            
-            <!-- Chat history -->
-            <div id="chatHistory">
-                <ul id="chatHistoryList"></ul>
+        <!-- Left Section (Group List) -->
+        <div id="groupListContainer">
+            <ul id="groupList">
+                <div style="display: flex; flex-direction: column; width: 200px;">
+                    <div id="joinedGroupsContainer">
+                        <h3>Joined Groups</h3>
+                        <div id="joinedGroups"></div>
+                    </div>
+                    
+                    <div id="notJoinedGroupsContainer" style="margin-top: 20px;">
+                        <h3>Other Groups</h3>
+                        <div id="notJoinedGroups"></div>
+                    </div>
+                </div>
+                
+                  
+                <!-- Groups will be listed here -->
+            </ul>
+            <!-- Right Section (Chat Area) -->
+            <!-- Right Section (Chat Area) -->
+            <div id="chatArea">
+                <div id="chatTitle"></div> <!-- Displays the name of the current group -->
+                <div id="messages" style="height: 400px; overflow-y: auto;"></div> <!-- Chat history (messages) will appear here -->
+                <input type="text" id="msgInput" placeholder="Type a message..." /> <!-- Input for new message -->
+                <button id="sendButton" onclick="sendMessage()">Send</button> <!-- Button to send the message -->
             </div>
-        
-            <!-- Typing indicator (NEW) -->
-            <p id="typingIndicator" style="font-style: italic; color: gray; display: none;"></p>
-        
-            <!-- Message input -->
-            <div id="messageInputSection">
-                <input type="text" id="messageInput" placeholder="Enter message" />
-                <button id="sendButton" onclick="sendMessage()">Send</button>
-            </div>
+
         </div>
     </div>
+</div>
+<div id="userPopup" style="
+    display: none;
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+">
+    <h3>Users in Group</h3>
+    <ul id="userList"></ul>
+    <button onclick="closeUserPopup()">Close</button>
+</div>
 
-    <script>
-        const socket = io('http://localhost:5000');
-        let targetUsername = ''; // Variable to store the username of the selected user
-        let currentChatHistory = []; // Array to store the chat history for the current conversation
-        let loggedInUser = ''; // Store the logged-in user
-        let typingTimeout;
-
-        socket.on('connect', () => {
-            console.log('Connected to server');
-        });
-        socket.on('roomJoined', (roomId) => {
-             console.log(`Joined room: ${roomId}`);
-            socket.emit('getChatHistory'); // Fetch chat history after joining the room
-        });
-        // Register the user
-        function register() {
-            const username = document.getElementById('username').value;
-            if (username) {
-                socket.emit('register', username);
-                loggedInUser = username; // Store the logged-in user
-                document.getElementById('register').style.display = 'none'; // Hide the register form
-                document.querySelector('.container').style.display = 'flex'; // Show the chat interface
-            } else {
-                alert('Please enter a username');
-            }
-        }
-
-        // Listen for user list updates
-        socket.on('userList', (users) => {
-            const userListElement = document.getElementById('userListUl');
-            userListElement.innerHTML = ''; // Clear the existing list
-            users.forEach(user => {
-                const li = document.createElement('li');
-                li.textContent = user;
-                li.onclick = () => selectUser(user, li); // Add click event to select a user
-                userListElement.appendChild(li);
-            });
-        });
-
-        // Select a user to send a private message to and display chat history
-        function selectUser(username, userElement) {
-            // Highlight the selected user
-            const userListItems = document.querySelectorAll('#userList li');
-            userListItems.forEach(item => item.classList.remove('active-user','blinking')); // Remove highlight from all users
-            userElement.classList.add('active-user'); // Add highlight to the selected user
-
-            targetUsername = username; // Set the target username
-            currentChatHistory = []; // Clear previous chat history
-            displayChatHistory(); // Show the chat history of the selected user
-            document.getElementById('welcomeText').style.display = 'none'; // Hide welcome text
-
-            socket.emit('startChat', targetUsername); 
-            // socket.emit('getChatHistory', targetUsername); // Fetch chat history between the logged-in user and selected user
-        }
-
-        // Send message to the selected user
-        function sendMessage() {
-            const message = document.getElementById('messageInput').value;
-            if (message && targetUsername) {
-                // Emit the message to the backend
-                // socket.emit('sendMessage', message);
-
-                socket.emit('sendMessage', targetUsername, message);
-
-                // Add the sent message to the chat history and display it
-                currentChatHistory.push({ from: loggedInUser, message });
-                displayChatHistory();
-                document.getElementById('messageInput').value = '';
-            } else {
-                alert('Please select a user and enter a message');
-            }
-        }
-
-        // Display chat history for the selected user
-        function displayChatHistory() {
-            console.log("Display chat history called ....");
-            
-    const chatHistoryList = document.getElementById('chatHistoryList');
-    chatHistoryList.innerHTML = ''; // Clear previous history
-
-    currentChatHistory.forEach(msg => {
-        const li = document.createElement('li');
-        li.textContent = msg.message;
-        li.classList.add('chat-message'); // Common class for styling
-
-        if (msg.from === loggedInUser) {
-            li.classList.add('message-sent'); // Align to right
-            li.style.alignSelf = 'flex-end';
+<script>
+    const socket = io('http://localhost:5000'); // Your backend URL
+    const usernameInput = document.getElementById("username");
+    const registerBtn = document.getElementById("registerBtn");
+    const createGroupBtn = document.getElementById("createGroupBtn");
+    const joinedListDiv = document.getElementById("joinedGroups");
+    const notJoinedListDiv = document.getElementById("notJoinedGroups");
+    let currentGroup = null;
+    let myUsername = "";
+    // Register User
+    registerBtn.addEventListener("click", () => {
+        const username = usernameInput.value.trim();
+        if (username) {
+            socket.emit("register", username);
+            usernameInput.value = '';
+            document.getElementById('registerSection').style.display = 'none'; // Hide register section
+            document.getElementById('chatSection').style.display = 'block'; // Show chat section
         } else {
-            li.classList.add('message-received'); // Align to left
-            li.style.alignSelf = 'flex-start';
+            alert("Please enter a username.");
         }
-        chatHistoryList.appendChild(li);
+    });
+    socket.on("register", (username) => {
+    myUsername = username; // ✅ Save it for later comparison
+});
+    // Handle creating a group
+    function createGroup() {
+        const groupName = prompt("Enter a group name:");
+        if (!groupName) return alert("Please enter a group name");
+        console.log("Group name pass thayu",groupName)
+        socket.emit('createGroup', groupName); // Emit event to create group
+        currentGroup = groupName;
+    }
+
+    // Handle joining a group
+    function joinGroup(groupName) {
+        console.log("join group called thayu");
+        socket.emit('joinGroup', groupName);
+        currentGroup = groupName;
+        document.getElementById('chatTitle').textContent = 'Group: ' + groupName;
+        document.getElementById('messages').innerHTML = ''; // Clear the messages
+    }
+
+    function sendMessage() {
+    const message = document.getElementById('msgInput').value.trim();
+    if (message && currentGroup) {
+        // Emit the message to the server only
+        socket.emit('groupMessage', currentGroup, message);
+
+        // Clear the input field
+        document.getElementById('msgInput').value = '';
+    }
+}
+    // Receive message from server
+    socket.on('groupMessage', ({ message, from }) => {
+    const messagesDiv = document.getElementById('messages');
+    const msgDiv = document.createElement('div');
+            // If the message is a system message (join/leave), display it differently
+    if (from === 'System') {
+        msgDiv.textContent = `[${from}]: ${message}`;
+        msgDiv.style.fontStyle = "italic";
+        msgDiv.style.color = "#777"; // Optional: Different styling for system messages
+    } else {
+        const displayName = from === myUsername ? 'You' : from || 'Anon';
+        msgDiv.textContent = `[${displayName}]: ${message}`;
+    }
+    // ✅ Show "You" if it's from the current user
+    const displayName = from === myUsername ? 'You' : from || 'Anon';
+
+    msgDiv.textContent = `[${displayName}]: ${message}`;
+    messagesDiv.appendChild(msgDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+
+
+
+    // When a new group is created, automatically add it to the group list
+    socket.on('joinedGroup', (groupName) => {
+        console.log("NEW GROUP BANYU");
+    currentGroup = groupName.replace('group-', '');
+    document.getElementById('chatTitle').textContent = 'Group: ' + currentGroup;
+    document.getElementById('messages').innerHTML = ''; // Clear messages
     });
 
-    // Scroll to the bottom of the chat history
-    chatHistoryList.scrollTop = chatHistoryList.scrollHeight;
+
+
+
+
+    socket.on("groupLists", ({ joinedGroups, otherGroups }) => {
+
+        console.log("GROUPLIST CALL THAYU AHIYA ")
+    renderGroupList(joinedListDiv, joinedGroups, true);
+    renderGroupList(notJoinedListDiv, otherGroups, false);
+});
+
+  function renderGroupList(container, groups, joined) {
+    container.innerHTML = ""; // Clear only the group list, not the header
+
+    if (groups.length === 0) {
+        const emptyMsg = document.createElement("div");
+        emptyMsg.textContent = joined ? "You're not in any groups yet." : "No other groups available.";
+        emptyMsg.style.fontSize = "14px";
+        emptyMsg.style.color = "#777";
+        container.appendChild(emptyMsg);
+        return;
+    }
+
+    groups.forEach(group => {
+        const btn = document.createElement("button");
+        btn.textContent = group;
+        btn.className = "group-button";
+        btn.style.marginBottom = "6px";
+        btn.style.padding = "8px";
+        btn.style.borderRadius = "5px";
+        btn.style.border = "1px solid #ccc";
+        btn.style.cursor = "pointer";
+        btn.style.backgroundColor = joined ? "#e8f5e9" : "#e3f2fd";
+
+        btn.onclick = () => {
+    if (!joined) {
+        // Show Join button
+        const confirmJoin = document.createElement("button");
+        confirmJoin.textContent = "Join";
+        confirmJoin.style.marginLeft = "10px";
+        confirmJoin.style.backgroundColor = "#4CAF50";
+        confirmJoin.style.color = "#fff";
+        confirmJoin.style.border = "none";
+        confirmJoin.style.padding = "5px 10px";
+        confirmJoin.style.borderRadius = "4px";
+        confirmJoin.style.cursor = "pointer";
+
+        if (!btn.querySelector("button")) {
+            btn.appendChild(confirmJoin);
+        }
+
+        confirmJoin.onclick = (e) => {
+            e.stopPropagation();
+            socket.emit("joinGroup", `group-${group}`);
+        };
+    } else {
+        // Show Leave button
+        const leaveBtn = document.createElement("button");
+        leaveBtn.textContent = "Leave";
+        leaveBtn.style.marginLeft = "10px";
+        leaveBtn.style.backgroundColor = "#f44336";
+        leaveBtn.style.color = "#fff";
+        leaveBtn.style.border = "none";
+        leaveBtn.style.padding = "5px 10px";
+        leaveBtn.style.borderRadius = "4px";
+        leaveBtn.style.cursor = "pointer";
+
+        // Prevent multiple leave buttons
+        if (!btn.querySelector("button")) {
+            btn.appendChild(leaveBtn);
+        }
+
+        leaveBtn.onclick = (e) => {
+            e.stopPropagation();
+            console.log("Leave Gropu Called here .....")
+            socket.emit("leaveGroup", `group-${group}`);
+        };
+
+        // Also allow opening chat by clicking the group text
+        btn.addEventListener("dblclick", () => openChat(group));
+    }
+};
+
+
+        container.appendChild(btn);
+    });
 }
 
-        // Receive and display incoming messages
-        socket.on('receive-message', (data) => {
-            // Only show messages for the currently selected user
-            if (data.to === targetUsername || data.from === targetUsername) {
-                currentChatHistory.push({ from: data.from, message: data.message });
-                displayChatHistory();
-            }
-                // Add blinking effect to the sender's name in the user list
-             const userListItems = document.querySelectorAll('#userList li');
-             userListItems.forEach(item => {
-                 if (item.textContent === data.from && data.from !== targetUsername) {
-                     item.classList.add('blinking');
-                 }
-             });
-        });
+function openChat(group) {
+    console.log("Opening chat for group:", group);
+    currentGroup = group;
 
-        socket.on('chatHistory', (history) => {
-           currentChatHistory = history; // Store the history specific to this conversation
-            displayChatHistory();
-        });
+    // Set the group name in the chat title
+    document.getElementById('chatTitle').textContent = 'Group: ' + group;
 
-        const messageInput = document.getElementById('messageInput');
-        const typingIndicator = document.getElementById('typingIndicator');
-        messageInput.addEventListener('input', () => {
-    if (targetUsername) {
-        socket.emit('typing');
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-            socket.emit('stopTyping');
-        }, 3000); // Stops typing after 1 second
+    // Clear previous messages
+    document.getElementById('messages').innerHTML = ''; 
+
+    // Ask the server for chat history for the group
+    socket.emit("getGroupHistory", `group-${group}`);
+}
+socket.on("groupHistory", ({ group, history }) => {
+    console.log("Group And History  : ",group ,history );
+    if (group !== `group-${currentGroup}`) return;
+
+    // Get the messages div where the chat history will be displayed
+    const messagesDiv = document.getElementById('messages');
+
+    // Display each message in the chat history
+    history.forEach(({ sender, message }) => {
+        console.log("message History Mathi Msg Jouo ",sender,message)
+        const msgDiv = document.createElement('div');
+        msgDiv.textContent = `[${sender}]: ${message}`;
+        messagesDiv.appendChild(msgDiv);
+    });
+
+    // Scroll to the bottom to show the latest messages
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+function sendMessage() {
+    const message = document.getElementById('msgInput').value.trim();
+    if (message && currentGroup) {
+        // Emit the message to the server
+        socket.emit('groupMessage', currentGroup, message);
+
+        // Add the message to the UI immediately for instant feedback
+        const messagesDiv = document.getElementById('messages');
+        const msgDiv = document.createElement('div');
+        msgDiv.textContent = `[You]: ${message}`;
+        messagesDiv.appendChild(msgDiv);
+
+        // Scroll to the bottom to show the new message
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        // Clear the input field
+        document.getElementById('msgInput').value = '';
+    }
+}
+document.getElementById('chatTitle').addEventListener('click', () => {
+    if (currentGroup) {
+        socket.emit('getGroupUsers', currentGroup);
     }
 });
+socket.on("groupUsers", ({ group, users }) => {
+    const userList = document.getElementById("userList");
+    userList.innerHTML = ""; // Clear old data
 
-// Listen for "typing" event
-socket.on('typing', (user) => {    
-    if (user === targetUsername) {
-        typingIndicator.textContent = `${user} is typing...`;
-        typingIndicator.style.display = 'block';
-    }
+    users.forEach(username => {
+        const li = document.createElement("li");
+        li.textContent = username;
+        userList.appendChild(li);
+    });
+
+    document.getElementById("userPopup").style.display = "block";
 });
 
-// Listen for "stopTyping" event
-socket.on('stopTyping', (user) => {
-    if (user === targetUsername) {
-        typingIndicator.style.display = 'none';
-    }
-});
-
-socket.on('userJoined', (message) => {
-    alert(message); // Show browser alert
-});
-    </script>
+function closeUserPopup() {
+    document.getElementById("userPopup").style.display = "none";
+}
+</script>
 </body>
+</html>
