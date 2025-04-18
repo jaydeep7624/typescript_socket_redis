@@ -20,7 +20,7 @@ const initRedisClient = async() =>{
         
         console.log(`🕒 Last successful save: ${lastSaveDate.toISOString()}`);
 
-
+/*
         await client.lPush('mylist',['a','b','c']);
         console.log("Poped Item:",await client.lPop('mylist'));
 
@@ -86,7 +86,7 @@ const initRedisClient = async() =>{
 
         /* Sorted Sets Method :  */
         // To Add Players in Sroted Sets : 
-        await client.zAdd("players",[
+/*        await client.zAdd("players",[
             {score:100,value:'Jay'},
             {score:120,value:'Deep'},
             {score:210,value:'Jaydeep'},
@@ -156,7 +156,7 @@ const initRedisClient = async() =>{
         console.log("Union of two sets",await client.sUnion(['fruits1','fruits2'])) // To Take Union Between Fruits1 To Fruits 2
 
         console.log(await client.flushAll()); // Delete All Keys 
-
+*/
         
     }
     catch(error){  

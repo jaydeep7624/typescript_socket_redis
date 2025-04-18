@@ -457,6 +457,7 @@
     </div>
 
     <div class="container" style="display:none;">
+        
         <!-- Left side: User list -->
         <div id="userList">
             <h3>Users</h3>
@@ -493,7 +494,10 @@
         socket.on('connect', () => {
             console.log('Connected to server');
         });
-
+        socket.on('roomJoined', (roomId) => {
+             console.log(`Joined room: ${roomId}`);
+            socket.emit('getChatHistory'); // Fetch chat history after joining the room
+        });
         // Register the user
         function register() {
             const username = document.getElementById('username').value;
@@ -530,7 +534,9 @@
             currentChatHistory = []; // Clear previous chat history
             displayChatHistory(); // Show the chat history of the selected user
             document.getElementById('welcomeText').style.display = 'none'; // Hide welcome text
-            socket.emit('getChatHistory', targetUsername); // Fetch chat history between the logged-in user and selected user
+
+            socket.emit('startChat', targetUsername); 
+            // socket.emit('getChatHistory', targetUsername); // Fetch chat history between the logged-in user and selected user
         }
 
         // Send message to the selected user
@@ -538,12 +544,14 @@
             const message = document.getElementById('messageInput').value;
             if (message && targetUsername) {
                 // Emit the message to the backend
+                // socket.emit('sendMessage', message);
+
                 socket.emit('sendMessage', targetUsername, message);
 
                 // Add the sent message to the chat history and display it
-                currentChatHistory.push({ from: loggedInUser, message: message });
+                currentChatHistory.push({ from: loggedInUser, message });
                 displayChatHistory();
-                document.getElementById('messageInput').value = ''; // Clear the input field
+                document.getElementById('messageInput').value = '';
             } else {
                 alert('Please select a user and enter a message');
             }
@@ -551,28 +559,29 @@
 
         // Display chat history for the selected user
         function displayChatHistory() {
-            const chatHistoryList = document.getElementById('chatHistoryList');
-            chatHistoryList.innerHTML = ''; // Clear previous history
-
-            currentChatHistory.forEach(msg => {
-                const li = document.createElement('li');
-                li.textContent = msg.message;
-                li.classList.add('chat-message'); // Common class for styling
+            console.log("Display chat history called ....");
             
-                // Apply styles based on the sender
-                if (msg.from === loggedInUser) {
-                    li.classList.add('message-sent'); // Align to right
-                    li.style.alignSelf = 'flex-end';
-                } else {
-                    li.classList.add('message-received'); // Align to left
-                    li.style.alignSelf = 'flex-start';
-                }
-                chatHistoryList.appendChild(li);
-            });
-        
-            // Scroll to the bottom of the chat history
-            chatHistoryList.scrollTop = chatHistoryList.scrollHeight;
+    const chatHistoryList = document.getElementById('chatHistoryList');
+    chatHistoryList.innerHTML = ''; // Clear previous history
+
+    currentChatHistory.forEach(msg => {
+        const li = document.createElement('li');
+        li.textContent = msg.message;
+        li.classList.add('chat-message'); // Common class for styling
+
+        if (msg.from === loggedInUser) {
+            li.classList.add('message-sent'); // Align to right
+            li.style.alignSelf = 'flex-end';
+        } else {
+            li.classList.add('message-received'); // Align to left
+            li.style.alignSelf = 'flex-start';
         }
+        chatHistoryList.appendChild(li);
+    });
+
+    // Scroll to the bottom of the chat history
+    chatHistoryList.scrollTop = chatHistoryList.scrollHeight;
+}
 
         // Receive and display incoming messages
         socket.on('receive-message', (data) => {
@@ -590,9 +599,8 @@
              });
         });
 
-        // Receive chat history when selected user is clicked
         socket.on('chatHistory', (history) => {
-            currentChatHistory = history; // Store the history specific to this conversation
+           currentChatHistory = history; // Store the history specific to this conversation
             displayChatHistory();
         });
 
@@ -600,18 +608,16 @@
         const typingIndicator = document.getElementById('typingIndicator');
         messageInput.addEventListener('input', () => {
     if (targetUsername) {
-        socket.emit('typing', targetUsername);
+        socket.emit('typing');
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(() => {
-            socket.emit('stopTyping', targetUsername);
-        }, 1000); // Stops typing after 1 second
+            socket.emit('stopTyping');
+        }, 3000); // Stops typing after 1 second
     }
 });
 
 // Listen for "typing" event
-socket.on('typing', (user) => {
-    console.log(user);
-    
+socket.on('typing', (user) => {    
     if (user === targetUsername) {
         typingIndicator.textContent = `${user} is typing...`;
         typingIndicator.style.display = 'block';
