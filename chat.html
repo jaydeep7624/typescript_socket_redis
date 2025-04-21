@@ -148,7 +148,7 @@
     <div id="chatSection" style="display: none;">
         <!-- Create Group Button on the left top -->
         <button id="createGroupBtn" onclick="createGroup()">Create Group</button>
-
+        <button onclick="sendBroadcastMessage()" >Send Brodcast Message</button>
         <!-- Left Section (Group List) -->
         <div id="groupListContainer">
             <ul id="groupList">
@@ -198,30 +198,30 @@
 </div>
 
 <script>
-    const socket = io('http://localhost:5000'); // Your backend URL
+    const socket = io('http://localhost:5000'); 
     const usernameInput = document.getElementById("username");
     const registerBtn = document.getElementById("registerBtn");
     const createGroupBtn = document.getElementById("createGroupBtn");
     const joinedListDiv = document.getElementById("joinedGroups");
     const notJoinedListDiv = document.getElementById("notJoinedGroups");
     let currentGroup = null;
-    let myUsername = "";
-    // Register User
+    let myUsername = "";    
+    
     registerBtn.addEventListener("click", () => {
         const username = usernameInput.value.trim();
         if (username) {
             socket.emit("register", username);
             usernameInput.value = '';
-            document.getElementById('registerSection').style.display = 'none'; // Hide register section
-            document.getElementById('chatSection').style.display = 'block'; // Show chat section
+            document.getElementById('registerSection').style.display = 'none'; 
+            document.getElementById('chatSection').style.display = 'block'; 
         } else {
             alert("Please enter a username.");
         }
     });
     socket.on("register", (username) => {
-    myUsername = username; // ✅ Save it for later comparison
-});
-    // Handle creating a group
+     myUsername = username; 
+    });
+   
     function createGroup() {
         const groupName = prompt("Enter a group name:");
         if (!groupName) return alert("Please enter a group name");
@@ -230,215 +230,185 @@
         currentGroup = groupName;
     }
 
-    // Handle joining a group
     function joinGroup(groupName) {
         console.log("join group called thayu");
         socket.emit('joinGroup', groupName);
         currentGroup = groupName;
         document.getElementById('chatTitle').textContent = 'Group: ' + groupName;
-        document.getElementById('messages').innerHTML = ''; // Clear the messages
+        document.getElementById('messages').innerHTML = ''; 
     }
-
-    function sendMessage() {
-    const message = document.getElementById('msgInput').value.trim();
-    if (message && currentGroup) {
-        // Emit the message to the server only
-        socket.emit('groupMessage', currentGroup, message);
-
-        // Clear the input field
-        document.getElementById('msgInput').value = '';
-    }
-}
-    // Receive message from server
     socket.on('groupMessage', ({ message, from }) => {
-    const messagesDiv = document.getElementById('messages');
-    const msgDiv = document.createElement('div');
-            // If the message is a system message (join/leave), display it differently
-    if (from === 'System') {
-        msgDiv.textContent = `[${from}]: ${message}`;
-        msgDiv.style.fontStyle = "italic";
-        msgDiv.style.color = "#777"; // Optional: Different styling for system messages
-    } else {
-        const displayName = from === myUsername ? 'You' : from || 'Anon';
-        msgDiv.textContent = `[${displayName}]: ${message}`;
-    }
-    // ✅ Show "You" if it's from the current user
-    const displayName = from === myUsername ? 'You' : from || 'Anon';
-
-    msgDiv.textContent = `[${displayName}]: ${message}`;
-    messagesDiv.appendChild(msgDiv);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-});
-
-
-
-    // When a new group is created, automatically add it to the group list
-    socket.on('joinedGroup', (groupName) => {
-        console.log("NEW GROUP BANYU");
-    currentGroup = groupName.replace('group-', '');
-    document.getElementById('chatTitle').textContent = 'Group: ' + currentGroup;
-    document.getElementById('messages').innerHTML = ''; // Clear messages
-    });
-
-
-
-
-
-    socket.on("groupLists", ({ joinedGroups, otherGroups }) => {
-
-        console.log("GROUPLIST CALL THAYU AHIYA ")
-    renderGroupList(joinedListDiv, joinedGroups, true);
-    renderGroupList(notJoinedListDiv, otherGroups, false);
-});
-
-  function renderGroupList(container, groups, joined) {
-    container.innerHTML = ""; // Clear only the group list, not the header
-
-    if (groups.length === 0) {
-        const emptyMsg = document.createElement("div");
-        emptyMsg.textContent = joined ? "You're not in any groups yet." : "No other groups available.";
-        emptyMsg.style.fontSize = "14px";
-        emptyMsg.style.color = "#777";
-        container.appendChild(emptyMsg);
-        return;
-    }
-
-    groups.forEach(group => {
-        const btn = document.createElement("button");
-        btn.textContent = group;
-        btn.className = "group-button";
-        btn.style.marginBottom = "6px";
-        btn.style.padding = "8px";
-        btn.style.borderRadius = "5px";
-        btn.style.border = "1px solid #ccc";
-        btn.style.cursor = "pointer";
-        btn.style.backgroundColor = joined ? "#e8f5e9" : "#e3f2fd";
-
-        btn.onclick = () => {
-    if (!joined) {
-        // Show Join button
-        const confirmJoin = document.createElement("button");
-        confirmJoin.textContent = "Join";
-        confirmJoin.style.marginLeft = "10px";
-        confirmJoin.style.backgroundColor = "#4CAF50";
-        confirmJoin.style.color = "#fff";
-        confirmJoin.style.border = "none";
-        confirmJoin.style.padding = "5px 10px";
-        confirmJoin.style.borderRadius = "4px";
-        confirmJoin.style.cursor = "pointer";
-
-        if (!btn.querySelector("button")) {
-            btn.appendChild(confirmJoin);
-        }
-
-        confirmJoin.onclick = (e) => {
-            e.stopPropagation();
-            socket.emit("joinGroup", `group-${group}`);
-        };
-    } else {
-        // Show Leave button
-        const leaveBtn = document.createElement("button");
-        leaveBtn.textContent = "Leave";
-        leaveBtn.style.marginLeft = "10px";
-        leaveBtn.style.backgroundColor = "#f44336";
-        leaveBtn.style.color = "#fff";
-        leaveBtn.style.border = "none";
-        leaveBtn.style.padding = "5px 10px";
-        leaveBtn.style.borderRadius = "4px";
-        leaveBtn.style.cursor = "pointer";
-
-        // Prevent multiple leave buttons
-        if (!btn.querySelector("button")) {
-            btn.appendChild(leaveBtn);
-        }
-
-        leaveBtn.onclick = (e) => {
-            e.stopPropagation();
-            console.log("Leave Gropu Called here .....")
-            socket.emit("leaveGroup", `group-${group}`);
-        };
-
-        // Also allow opening chat by clicking the group text
-        btn.addEventListener("dblclick", () => openChat(group));
-    }
-};
-
-
-        container.appendChild(btn);
-    });
-}
-
-function openChat(group) {
-    console.log("Opening chat for group:", group);
-    currentGroup = group;
-
-    // Set the group name in the chat title
-    document.getElementById('chatTitle').textContent = 'Group: ' + group;
-
-    // Clear previous messages
-    document.getElementById('messages').innerHTML = ''; 
-
-    // Ask the server for chat history for the group
-    socket.emit("getGroupHistory", `group-${group}`);
-}
-socket.on("groupHistory", ({ group, history }) => {
-    console.log("Group And History  : ",group ,history );
-    if (group !== `group-${currentGroup}`) return;
-
-    // Get the messages div where the chat history will be displayed
-    const messagesDiv = document.getElementById('messages');
-
-    // Display each message in the chat history
-    history.forEach(({ sender, message }) => {
-        console.log("message History Mathi Msg Jouo ",sender,message)
-        const msgDiv = document.createElement('div');
-        msgDiv.textContent = `[${sender}]: ${message}`;
-        messagesDiv.appendChild(msgDiv);
-    });
-
-    // Scroll to the bottom to show the latest messages
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-});
-function sendMessage() {
-    const message = document.getElementById('msgInput').value.trim();
-    if (message && currentGroup) {
-        // Emit the message to the server
-        socket.emit('groupMessage', currentGroup, message);
-
-        // Add the message to the UI immediately for instant feedback
         const messagesDiv = document.getElementById('messages');
         const msgDiv = document.createElement('div');
-        msgDiv.textContent = `[You]: ${message}`;
+
+        if (from === 'System') {
+            msgDiv.textContent = `[${from}]: ${message}`;
+            msgDiv.style.fontStyle = "italic";
+            msgDiv.style.color = "#777"; 
+        } else {
+            const displayName = from === myUsername ? 'You' : from || 'Anon';
+            msgDiv.textContent = `[${displayName}]: ${message}`;
+        }
+    
+        const displayName = from === myUsername ? 'You' : from || 'Anon';
+
+        msgDiv.textContent = `[${displayName}]: ${message}`;
         messagesDiv.appendChild(msgDiv);
-
-        // Scroll to the bottom to show the new message
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-        // Clear the input field
-        document.getElementById('msgInput').value = '';
-    }
-}
-document.getElementById('chatTitle').addEventListener('click', () => {
-    if (currentGroup) {
-        socket.emit('getGroupUsers', currentGroup);
-    }
-});
-socket.on("groupUsers", ({ group, users }) => {
-    const userList = document.getElementById("userList");
-    userList.innerHTML = ""; // Clear old data
-
-    users.forEach(username => {
-        const li = document.createElement("li");
-        li.textContent = username;
-        userList.appendChild(li);
     });
 
-    document.getElementById("userPopup").style.display = "block";
-});
+    socket.on('joinedGroup', (groupName) => {
+        console.log("NEW GROUP BANYU");
+        currentGroup = groupName.replace('group-', '');
+        document.getElementById('chatTitle').textContent = 'Group: ' + currentGroup;
+        document.getElementById('messages').innerHTML = ''; 
+    });
 
-function closeUserPopup() {
-    document.getElementById("userPopup").style.display = "none";
-}
+    socket.on("groupLists", ({ joinedGroups, otherGroups }) => {
+        renderGroupList(joinedListDiv, joinedGroups, true);
+        renderGroupList(notJoinedListDiv, otherGroups, false);
+    });
+
+    function renderGroupList(container, groups, joined) {
+        container.innerHTML = ""; 
+        if (groups.length === 0) {
+            const emptyMsg = document.createElement("div");
+            emptyMsg.textContent = joined ? "You're not in any groups yet." : "No other groups available.";
+            emptyMsg.style.fontSize = "14px";
+            emptyMsg.style.color = "#777";
+            container.appendChild(emptyMsg);
+            return;
+        }   
+
+        groups.forEach(group => {
+            const btn = document.createElement("button");
+            btn.textContent = group;
+            btn.className = "group-button";
+            btn.style.marginBottom = "6px";
+            btn.style.padding = "8px";
+            btn.style.borderRadius = "5px";
+            btn.style.border = "1px solid #ccc";
+            btn.style.cursor = "pointer";
+            btn.style.backgroundColor = joined ? "#e8f5e9" : "#e3f2fd";
+
+            btn.onclick = () => {
+                if (!joined) {
+            
+                const confirmJoin = document.createElement("button");
+                confirmJoin.textContent = "Join";
+                confirmJoin.style.marginLeft = "10px";
+                confirmJoin.style.backgroundColor = "#4CAF50";
+                confirmJoin.style.color = "#fff";
+                confirmJoin.style.border = "none";
+                confirmJoin.style.padding = "5px 10px";
+                confirmJoin.style.borderRadius = "4px";
+                confirmJoin.style.cursor = "pointer";
+
+                if (!btn.querySelector("button")) {
+                    btn.appendChild(confirmJoin);
+                }
+
+                confirmJoin.onclick = (e) => {
+                    e.stopPropagation();
+                    socket.emit("joinGroup", `group-${group}`);
+                };
+            }
+            else {
+                const leaveBtn = document.createElement("button");
+                leaveBtn.textContent = "Leave";
+                leaveBtn.style.marginLeft = "10px";
+                leaveBtn.style.backgroundColor = "#f44336";
+                leaveBtn.style.color = "#fff";
+                leaveBtn.style.border = "none";
+                leaveBtn.style.padding = "5px 10px";
+                leaveBtn.style.borderRadius = "4px";
+                leaveBtn.style.cursor = "pointer";
+
+
+                if (!btn.querySelector("button")) {
+                    btn.appendChild(leaveBtn);
+                }
+
+                leaveBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    console.log("Leave Gropu Called here .....")
+                    socket.emit("leaveGroup", `group-${group}`);
+                };
+    
+                btn.addEventListener("dblclick", () => openChat(group));
+            }
+        };
+            container.appendChild(btn);
+        });
+    }
+
+    function openChat(group) {
+        console.log("Opening chat for group:", group);
+        currentGroup = group;
+        document.getElementById('chatTitle').textContent = 'Group: ' + group;
+        document.getElementById('messages').innerHTML = ''; 
+        socket.emit("getGroupHistory", `group-${group}`);
+    }
+    socket.on("groupHistory", ({ group, history }) => {
+        console.log("Group And History  : ",group ,history );
+        if (group !== `group-${currentGroup}`) return;
+        const messagesDiv = document.getElementById('messages');
+        history.forEach(({ sender, message }) => {
+            console.log("message History Mathi Msg Jouo ",sender,message)
+            const msgDiv = document.createElement('div');
+            msgDiv.textContent = `[${sender}]: ${message}`;
+            messagesDiv.appendChild(msgDiv);
+        });
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+    function sendMessage() {
+        const message = document.getElementById('msgInput').value.trim();
+        if (message && currentGroup) {
+            socket.emit('groupMessage', currentGroup, message);
+            const messagesDiv = document.getElementById('messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.textContent = `[You]: ${message}`;
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            document.getElementById('msgInput').value = '';
+        socket.emit('customEvent','custom Message Will Be called Here');
+
+        }
+    }
+    document.getElementById('chatTitle').addEventListener('click', () => {
+        if (currentGroup) {
+            socket.emit('getGroupUsers', currentGroup);
+        }
+    });
+    socket.on("groupUsers", ({ group, users }) => {
+        const userList = document.getElementById("userList");
+        userList.innerHTML = ""; 
+        users.forEach(username => {
+            const li = document.createElement("li");
+            li.textContent = username;
+            userList.appendChild(li);
+        });
+        document.getElementById("userPopup").style.display = "block";
+    });
+    function closeUserPopup() {
+        document.getElementById("userPopup").style.display = "none";
+    }
+
+    socket.on('customEvent',(object)=>{
+        console.log(object)
+        // alert(message)
+    })
+
+    function sendBroadcastMessage(){
+        socket.emit('sendBroadcastMessage');
+    }
+
+    // Listen for the "announcement" event
+    socket.on("announcement", (data) => {
+        console.log("📢 Announcement Received:", data);
+        alert(data.text)
+
+    });
 </script>
 </body>
 </html>

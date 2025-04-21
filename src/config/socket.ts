@@ -16,7 +16,6 @@ class ChatSocket {
     initializeSocket() {
         this.io.on("connection", (socket) => {
             console.log("A user connected:", socket.id);
-
             socket.on("register", (username: string) => this.handleRegister(socket, username));
             socket.on("createGroup", (groupName: string) => this.handleCreateGroup(socket, groupName));
             socket.on("joinGroup", (groupName: string) => this.handleJoinGroup(socket, groupName));
@@ -25,6 +24,8 @@ class ChatSocket {
             socket.on("getGroupHistory", (groupName: string) => this.handleGetGroupHistory(socket, groupName));
             socket.on("disconnect", () => this.handleDisconnect(socket));
             socket.on('getGroupUsers',(groupName: string) => this.handleGroupUsers(socket,groupName));
+            socket.on('customEvent',(message:string) => this.handleCustomEvent(socket,message));
+            socket.on('sendBroadcastMessage',() => this.sendBroadcastMessage(socket));
         });
     }
 
@@ -53,7 +54,7 @@ class ChatSocket {
         // Join the group
         socket.join(groupId);
         // this.emitGroupListsForUser(socket);
-        // Notify the user that the group was created and they joined it
+   
         socket.emit("joinedGroup", groupName);
         this.updateGroupList();
     
@@ -91,15 +92,21 @@ class ChatSocket {
     }
 
     handleLeaveGroup(socket: any, groupName: string) {
+        console.log("THis Group : ",this.groups)
         this.groups[groupName]?.delete(socket.id);
         this.userGroups[socket.id]?.delete(groupName);
         socket.leave(groupName);
         socket.emit("leftGroup", groupName);
-        // this.io.to(groupName).emit("userLeftGroup", `${this.users[socket.id]} left ${groupName}`);
+     
         this.io.to(groupName).emit("groupMessage", {
             message: `${this.users[socket.id]} left the group.`,
             from: 'System',
         });
+
+        if (this.groups[groupName] && this.groups[groupName].size === 0) {
+            delete this.groups[groupName]; // delete the group
+        }
+    
         this.emitGroupListsForUser(socket);
 
     }
@@ -113,14 +120,15 @@ class ChatSocket {
         this.chatHistory['group-'+groupName] = this.chatHistory['group-'+groupName] || [];
         this.chatHistory['group-'+groupName].push({ sender, message });
        
-        this.io.to('group-'+groupName).emit("groupMessage", { from: sender, message });
+        // this.io.to('group-'+groupName).emit("groupMessage", { from: sender, message });  // this line send Message to all users  including send users also 
+        socket.to('group-'+groupName).emit("groupMessage", { from: sender, message });
+        // This line Send message in given group name excluding sender.
+
     }
 
     handleDisconnect(socket: any) {
         const username = this.users[socket.id];
         delete this.users[socket.id];
-
-        // Remove user from all groups they joined
         const groups = this.userGroups[socket.id] || new Set();
         groups.forEach(group => {
             this.groups[group]?.delete(socket.id);
@@ -130,11 +138,11 @@ class ChatSocket {
         delete this.userGroups[socket.id];
     }
 
-    // Emit group lists specific to the user
+    
     emitGroupListsForUser(socket: any) {
-        const allGroups = Object.keys(this.groups); // ['group-friends', 'group-music', etc.]
+        const allGroups = Object.keys(this.groups); 
         const joinedGroups = Array.from(this.userGroups[socket.id] || []);
-        // Filter out joined from all to get non-joined
+      
         const notJoinedGroups = allGroups.filter(group => !joinedGroups.includes(group));
         socket.emit('groupLists', {
             joinedGroups: joinedGroups.map(g => g.replace('group-', '')),
@@ -149,9 +157,29 @@ class ChatSocket {
         .map(sid => this.users[sid])
         .filter(Boolean);
 
-        socket.emit("groupUsers", { group: groupName, users });
+        socket.emit("groupUsers", { group: groupName, users });   
     }
 
+    handleCustomEvent(socket:any,message:string){
+        console.log("custom event ma avyu ....",message);
+        socket.emit('customEvent',{messgae:'Custom Event Mathi Call RTHayo aa message ....'});
+    }
+    sendBroadcastMessage(socket:any){
+        const groupNames = Object.keys(this.groups); 
+
+        let emitChain:any = this.io;
+        // Chain `.to()` for each group name
+        groupNames.forEach(groupName => {
+            emitChain =emitChain.to(groupName);
+        });
+        // console.log(emitChain)
+        // Now emit the event to all groups at once
+        emitChain.emit("announcement", {
+          text: 'We have Meeting at 3 AM ',
+          type: "info",
+        });
+        console.log("EMititng the messages")
+    }
 }
 
 export default (io: any) => new ChatSocket(io);
