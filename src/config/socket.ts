@@ -53,6 +53,7 @@ class ChatSocket {
     
         // Join the group
         socket.join(groupId);
+        console.log("Rooms Was Creatde : ",socket.rooms);
         // this.emitGroupListsForUser(socket);
    
         socket.emit("joinedGroup", groupName);
@@ -89,6 +90,13 @@ class ChatSocket {
         });
         this.handleGetGroupHistory(socket, groupName);
         this.emitGroupListsForUser(socket);
+
+        // It gives All the inforamtion of no of rooms and each rooms  has no. of Members .
+        console.log(this.io.sockets.adapter);
+        const rooms = this.io.sockets.adapter.rooms;
+        for (const [roomName, socketsSet] of rooms) {
+            console.log(`Room: ${roomName}, Members: ${[...socketsSet].join(', ')}`);
+        }
     }
 
     handleLeaveGroup(socket: any, groupName: string) {
@@ -134,8 +142,9 @@ class ChatSocket {
             this.groups[group]?.delete(socket.id);
             this.io.to(group).emit("userLeftGroup", `${username} disconnected`);
         });
-
+       
         delete this.userGroups[socket.id];
+        console.log(socket.rooms)
     }
 
     
@@ -150,9 +159,11 @@ class ChatSocket {
         });
     }
 
-    handleGroupUsers(socket:any,groupName:string){
+    async handleGroupUsers(socket:any,groupName:string){
         const groupId = `group-${groupName}`;
         const socketIdsInGroup = this.groups[groupId] || new Set();
+        // const socketIdsInGroup = await this.io.in(groupId).allSockets(); // its give  list of all socket which are present in that group . 
+        // now its depricated  
         const users = Array.from(socketIdsInGroup)
         .map(sid => this.users[sid])
         .filter(Boolean);
@@ -172,8 +183,8 @@ class ChatSocket {
         groupNames.forEach(groupName => {
             emitChain =emitChain.to(groupName);
         });
-        // console.log(emitChain)
-        // Now emit the event to all groups at once
+        
+        // Now emit the event to all groups at once . it found the all the group memeber of union and send broadcast Messages 
         emitChain.emit("announcement", {
           text: 'We have Meeting at 3 AM ',
           type: "info",

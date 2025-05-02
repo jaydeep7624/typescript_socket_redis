@@ -13,17 +13,17 @@ class Database{
             password: process.env.DATABASE_PASSWORD,
             port:Number(process.env.POSTGRE_DEFAULT_PORT)      
         });
-        this.connection();
+        // this.connection();  // this is not mendatory to intialize conncetion its direct run its not required .
     }
-    connection():void{
-        this.pool.connect((err, client) => {
-            if (err) {
-              console.error('❌ Error connecting to the database', err.stack);
-            } else {
-                console.log('✅ Connected to the database successfully');
-            }
-        }); 
-    }
+    // connection():void{
+    //     this.pool.connect((err, client) => {
+    //         if (err) {
+    //           console.error('❌ Error connecting to the database', err.stack);
+    //         } else {
+    //             console.log('✅ Connected to the database successfully');
+    //         }
+    //     }); 
+    // }
     async query(text:string, params:any[]) {
         try {
             const result:QueryResult = await this.pool.query(text, params); 

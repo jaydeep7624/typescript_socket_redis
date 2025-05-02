@@ -10,7 +10,6 @@ class Validation{
             mobile_number: joi.string().pattern(/^[0-9]{10}$/).required(),
             profileImage: joi.string().pattern(/^[0-9]{10}$/).optional(),
         });
-
         const options:any = {
             errors: {
                 wrap: {

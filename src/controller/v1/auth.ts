@@ -9,6 +9,7 @@ import { Request, Response} from 'express';
 import { getClient } from '@redis';
 import { RedisClientType } from 'redis';
 import { QueryResult } from 'pg';
+import adjustHelper from '@config/eventQueue';
 const cryptolib: any = require('cryptlib');
 
 interface userTypeReq extends Request {
@@ -63,7 +64,10 @@ class Authentication {
                         { expiresIn: '5m' }
                     );
                     insert_data.rows[0].token=token;
-                    insert_data.rows[0].profile_image=`${constant.BASE_URL}${insert_data.rows[0].profile_image}`
+                    insert_data.rows[0].profile_image=`${constant.BASE_URL}${insert_data.rows[0].profile_image}`;
+                    console.log("Mail Send Karva valu functin Call Thayu");
+                    adjustHelper.sendMailEventQueue({ 'eventName': "kyc_verification_successful", callbackParams: {}, "email":email});
+                    console.log("Mail Send Karva valu function Puru thayu")
                     await common.sendResponse(req, res, 1, { keyword: "rest_keyword_user_register_sucess", content: "" }, insert_data.rows[0]);
                 }
             }

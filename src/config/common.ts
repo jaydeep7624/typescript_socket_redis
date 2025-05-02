@@ -12,6 +12,12 @@ class Common{
             message: message.keyword,
             data: data
         });
+
+        // res.setHeader('content-type','application/json');
+        // res.setHeader('charset','utf-8');
+        // res.writeHead(200)
+        // res.write(JSON.stringify(data))
+        // res.end();
     } 
 
     generateOtp =()=>{

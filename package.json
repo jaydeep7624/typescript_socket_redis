@@ -14,6 +14,7 @@
   "dependencies": {
     "@types/module-alias": "^2.0.4",
     "@types/redis": "^4.0.11",
+    "bull": "^4.16.5",
     "cryptlib": "^1.0.3",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
@@ -45,5 +46,4 @@
     "tsc-alias": "^1.8.15",
     "typescript": "^5.8.3"
   }
- 
 }
